@@ -58,15 +58,22 @@ public class BlockStateProfile {
     private static final Block[] LEAVES_BLOCKS = {Blocks.ACACIA_LEAVES,Blocks.BIRCH_LEAVES,Blocks.DARK_OAK_LEAVES,Blocks.JUNGLE_LEAVES,Blocks.OAK_LEAVES,Blocks.SPRUCE_LEAVES};
     private static final Block[] NO_COLLISION_BLOCKS = {Blocks.SUGAR_CANE,
             Blocks.ACACIA_SAPLING, Blocks.BIRCH_SAPLING, Blocks.DARK_OAK_SAPLING, Blocks.JUNGLE_SAPLING, Blocks.OAK_SAPLING,
-            Blocks.TRIPWIRE};
+            Blocks.TRIPWIRE, Blocks.POTATOES, Blocks.CARROTS, Blocks.HEAVY_WEIGHTED_PRESSURE_PLATE, Blocks.LIGHT_WEIGHTED_PRESSURE_PLATE};
     private static final Block[] DOOR_BLOCKS = {Blocks.ACACIA_DOOR,Blocks.BIRCH_DOOR,Blocks.DARK_OAK_DOOR,Blocks.JUNGLE_DOOR,Blocks.OAK_DOOR,Blocks.SPRUCE_DOOR,Blocks.CRIMSON_DOOR,Blocks.WARPED_DOOR};
     private static final Block[] TRAPDOOR_BLOCKS = {Blocks.ACACIA_TRAPDOOR,Blocks.BIRCH_TRAPDOOR,Blocks.DARK_OAK_TRAPDOOR,Blocks.JUNGLE_TRAPDOOR,Blocks.OAK_TRAPDOOR,Blocks.SPRUCE_TRAPDOOR,Blocks.CRIMSON_TRAPDOOR,Blocks.WARPED_TRAPDOOR};
 
     //FILTERS
     private static final Predicate<BlockState> DEFAULT_FILTER = (blockState) -> blockState != blockState.getBlock().getDefaultState();
     private static final Predicate<BlockState> NO_COLLISION_FILTER = (blockState) -> {
-        if (blockState.getBlock() == Blocks.TRIPWIRE) {
+        Block block = blockState.getBlock();
+        if (block == Blocks.TRIPWIRE) {
             return isStringUseable(blockState);
+        } else if (block == Blocks.POTATOES || block == Blocks.CARROTS) {
+            int age = blockState.get(CropBlock.AGE);
+            return age != 0 && age != 2 && age != 4 && age != 7;
+        } else if (block == Blocks.HEAVY_WEIGHTED_PRESSURE_PLATE || block == Blocks.LIGHT_WEIGHTED_PRESSURE_PLATE) {
+            int power = blockState.get(Properties.POWER);
+            return power != 0 && power != 1;
         } else {
             return DEFAULT_FILTER.test(blockState);
         }
@@ -86,6 +93,18 @@ public class BlockStateProfile {
                 @Override
                 public BlockState getClientBlock(BlockState input) {
                     return input.with(Properties.POWERED, false).with(Properties.DISARMED,false);
+                }
+                @Override public void AddToResourcePack(Block block, ResourcePackMaker pack) {}
+            });
+        } else if (block == Blocks.HEAVY_WEIGHTED_PRESSURE_PLATE || block == Blocks.LIGHT_WEIGHTED_PRESSURE_PLATE) {
+            polyRegistry.registerBlockPoly(block, new BlockPoly() {
+                @Override
+                public BlockState getClientBlock(BlockState input) {
+                    if (input.get(Properties.POWER) == 0) {
+                        return input.with(Properties.POWER, 0);
+                    } else {
+                        return input.with(Properties.POWER, 1);
+                    }
                 }
                 @Override public void AddToResourcePack(Block block, ResourcePackMaker pack) {}
             });
