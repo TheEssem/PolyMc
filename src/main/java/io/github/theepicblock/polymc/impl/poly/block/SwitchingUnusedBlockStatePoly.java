@@ -56,7 +56,7 @@ public class SwitchingUnusedBlockStatePoly implements BlockPoly {
             throw new BlockStateManager.StateLimitReachedException("Block doesn't have enough blockstates left for false profile: '"+falseProfile.name+"'");
         }
         if (!manager.isAvailable(trueProfile, trueStates.size())) {
-            throw new BlockStateManager.StateLimitReachedException("Block doesn't have enough blockstates left for true profile: '"+falseProfile.name+"'");
+            throw new BlockStateManager.StateLimitReachedException("Block doesn't have enough blockstates left for true profile: '"+trueProfile.name+"'");
         }
 
         // Register the blocks to the correct profiles
