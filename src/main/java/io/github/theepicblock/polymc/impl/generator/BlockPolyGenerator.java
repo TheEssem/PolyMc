@@ -27,6 +27,7 @@ import io.github.theepicblock.polymc.impl.poly.block.*;
 import io.github.theepicblock.polymc.mixins.block.MaterialAccessor;
 import net.minecraft.block.*;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.enums.SlabType;
 import net.minecraft.fluid.FluidState;
 import net.minecraft.tag.BlockTags;
 import net.minecraft.util.Identifier;
@@ -153,7 +154,10 @@ public class BlockPolyGenerator {
         //=== SLABS ===
         if (block instanceof SlabBlock) {
             try {
-                return new UnusedBlockStatePoly(block, builder, BlockStateProfile.PETRIFIED_OAK_SLAB_PROFILE);
+                //return new UnusedBlockStatePoly(block, builder, BlockStateProfile.PETRIFIED_OAK_SLAB_PROFILE);
+                return new ReplacementFallbackUnusedBlockStatePoly(block, builder,
+                        BlockStateProfile.NOTE_BLOCK_PROFILE,
+                        (blockState) -> ((BlockState)blockState).get(SlabBlock.TYPE) == SlabType.DOUBLE);
             } catch (BlockStateManager.StateLimitReachedException ignored) {}
         }
 
