@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program; If not, see <https://www.gnu.org/licenses>.
  */
-package io.github.theepicblock.polymc.mixins.context.block;
+package io.github.theepicblock.polymc.mixins.block.implementations;
 
 import io.github.theepicblock.polymc.impl.Util;
 import io.github.theepicblock.polymc.impl.mixin.PlayerContextContainer;
@@ -28,22 +28,21 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 @Mixin(ChunkDeltaUpdateS2CPacket.class)
-public class ChunkDeltaUpdatePacketMixin implements PlayerContextContainer {
-	@Unique
-	private ServerPlayerEntity player;
+public class ChunkDeltaUpdateImplementation implements PlayerContextContainer {
+    @Unique private ServerPlayerEntity player;
 
-	@Override
-	public ServerPlayerEntity getPolyMcProvidedPlayer() {
-		return player;
-	}
+    @Override
+    public ServerPlayerEntity getPolyMcProvidedPlayer() {
+        return player;
+    }
 
-	@Override
-	public void setPolyMcProvidedPlayer(ServerPlayerEntity v) {
-		player = v;
-	}
+    @Override
+    public void setPolyMcProvidedPlayer(ServerPlayerEntity v) {
+        player = v;
+    }
 
-	@Redirect(method = "write", at = @At(value = "INVOKE", target = "Lnet/minecraft/block/Block;getRawIdFromState(Lnet/minecraft/block/BlockState;)I"))
-	public int getRawIdFromStateRedirect(BlockState state) {
-		return Util.getPolydRawIdFromState(state, this.player);
-	}
+    @Redirect(method = "write", at = @At(value = "INVOKE", target = "Lnet/minecraft/block/Block;getRawIdFromState(Lnet/minecraft/block/BlockState;)I"))
+    public int getRawIdFromStateRedirect(BlockState state) {
+        return Util.getPolydRawIdFromState(state, this.player);
+    }
 }

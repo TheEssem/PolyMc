@@ -26,19 +26,19 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class GuiUtils {
-	public static List<Slot> removePlayerSlots(List<Slot> base) {
-		return base.stream().filter(
-				(slot) -> !(slot.inventory instanceof PlayerInventory)
-		).collect(Collectors.toList());
-	}
+    public static List<Slot> removePlayerSlots(List<Slot> base) {
+        return base.stream().filter(
+                (slot) -> !(slot.inventory instanceof PlayerInventory)
+        ).collect(Collectors.toList());
+    }
 
-	public static void resyncPlayerInventory(PlayerEntity player) {
-		if (player instanceof ServerPlayerEntity) {
-			resyncPlayerInventory((ServerPlayerEntity)player);
-		}
-	}
+    public static void resyncPlayerInventory(PlayerEntity player) {
+        if (player instanceof ServerPlayerEntity) {
+            resyncPlayerInventory((ServerPlayerEntity)player);
+        }
+    }
 
-	public static void resyncPlayerInventory(ServerPlayerEntity player) {
-		player.onHandlerRegistered(player.currentScreenHandler, player.currentScreenHandler.getStacks());
-	}
+    public static void resyncPlayerInventory(ServerPlayerEntity player) {
+        player.currentScreenHandler.syncState();
+    }
 }

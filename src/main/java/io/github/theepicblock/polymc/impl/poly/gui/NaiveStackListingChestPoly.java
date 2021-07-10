@@ -26,6 +26,7 @@ import net.minecraft.item.Items;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.ScreenHandlerType;
 import net.minecraft.screen.slot.Slot;
+import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.server.network.ServerPlayerEntity;
 
 import java.util.List;
@@ -43,20 +44,30 @@ public class NaiveStackListingChestPoly implements GuiPoly {
 
         @Override
         public ScreenHandler getInitialHandler(int initialSyncId) {
-            return new NaiveStackListingScreenHandler(ScreenHandlerType.GENERIC_9X3, 9, 3, initialSyncId, player.inventory, base);
+            return new NaiveStackListingScreenHandler(ScreenHandlerType.GENERIC_9X3, 9, 3, initialSyncId, player.getInventory(), base);
         }
     }
 
-    public static class NaiveStackListingScreenHandler extends ScreenHandler{
+    public static class NaiveStackListingScreenHandler extends ScreenHandler {
         protected final ScreenHandler base;
+        /**
+         * Total amount of slots in this screen. Without the player inventory
+         */
+        protected final int totalSlots;
+        /**
+         * Total amount of slots that aren't present in {@link #base}
+         */
+        protected final int fakedSlots;
 
         protected NaiveStackListingScreenHandler(ScreenHandlerType<?> type, int width, int height, int syncId, PlayerInventory playerInventory, ScreenHandler base) {
             super(type, syncId);
             this.base = base;
+            this.totalSlots = width*height;
+            int fakedSlotsTemp = 0;
 
             List<Slot> baseSlots = GuiUtils.removePlayerSlots(base.slots);
-            for(int y = 0; y < width; ++y) {
-                for(int x = 0; x < height; ++x) {
+            for (int y = 0; y < width; ++y) {
+                for (int x = 0; x < height; ++x) {
                     int index = x + y * width;
 
                     Slot slot;
@@ -64,27 +75,38 @@ public class NaiveStackListingChestPoly implements GuiPoly {
                         slot = baseSlots.get(index);
                     } else {
                         slot = new StaticSlot(new ItemStack(Items.BLACK_STAINED_GLASS_PANE));
+                        fakedSlotsTemp++;
                     }
                     this.addSlot(slot);
                 }
             }
 
             //Player inventory
-            for(int y = 0; y < 3; ++y) {
-                for(int x = 0; x < 9; ++x) {
+            for (int y = 0; y < 3; ++y) {
+                for (int x = 0; x < 9; ++x) {
                     this.addSlot(new Slot(playerInventory, x + y * 9 + 9, 8 + x * 18, 84 + y * 18));
                 }
             }
 
             //Player hotbar
-            for(int hotbar = 0; hotbar < 9; ++hotbar) {
+            for (int hotbar = 0; hotbar < 9; ++hotbar) {
                 this.addSlot(new Slot(playerInventory, hotbar, 8 + hotbar * 18, 142));
             }
+
+            this.fakedSlots = fakedSlotsTemp;
         }
 
         @Override
         public boolean canUse(PlayerEntity player) {
             return base.canUse(player);
+        }
+
+        @Override
+        public ItemStack transferSlot(PlayerEntity player, int index) {
+            if (index > totalSlots) {
+                index -= fakedSlots;
+            }
+            return base.transferSlot(player, index);
         }
     }
 }

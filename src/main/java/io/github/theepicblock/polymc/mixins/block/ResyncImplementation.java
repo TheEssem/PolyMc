@@ -29,6 +29,7 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -42,20 +43,20 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  */
 @Mixin(ServerPlayerInteractionManager.class)
 public class ResyncImplementation {
-	@Shadow public ServerWorld world;
-	@Shadow public ServerPlayerEntity player;
+    @Shadow protected ServerWorld world;
+    @Shadow @Final protected ServerPlayerEntity player;
 
-	@Inject(method = "tryBreakBlock", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/world/ServerWorld;removeBlock(Lnet/minecraft/util/math/BlockPos;Z)Z"))
-	private void onBlockBreakInject(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
-		if (Util.isPolyMapVanillaLike(player)) {
-			BlockResyncManager.onBlockUpdate(null, pos, world, player, null);
-		}
-	}
+    @Inject(method = "tryBreakBlock", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/world/ServerWorld;removeBlock(Lnet/minecraft/util/math/BlockPos;Z)Z"))
+    private void onBlockBreakInject(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
+        if (Util.isPolyMapVanillaLike(player)) {
+            BlockResyncManager.onBlockUpdate(null, pos, world, player, null);
+        }
+    }
 
-	@Inject(method = "interactBlock", at = @At(value = "INVOKE", target = "Lnet/minecraft/item/ItemStack;useOnBlock(Lnet/minecraft/item/ItemUsageContext;)Lnet/minecraft/util/ActionResult;"))
-	private void onBlockPlaceInject(ServerPlayerEntity player, World world, ItemStack stack, Hand hand, BlockHitResult hitResult, CallbackInfoReturnable<ActionResult> cir) {
-		if (Util.isPolyMapVanillaLike(player) && stack.getItem() instanceof BlockItem) {
-			BlockResyncManager.onBlockUpdate(null, hitResult.getBlockPos().offset(hitResult.getSide()), world, player, null);
-		}
-	}
+    @Inject(method = "interactBlock", at = @At(value = "INVOKE", target = "Lnet/minecraft/item/ItemStack;useOnBlock(Lnet/minecraft/item/ItemUsageContext;)Lnet/minecraft/util/ActionResult;"))
+    private void onBlockPlaceInject(ServerPlayerEntity player, World world, ItemStack stack, Hand hand, BlockHitResult hitResult, CallbackInfoReturnable<ActionResult> cir) {
+        if (Util.isPolyMapVanillaLike(player) && stack.getItem() instanceof BlockItem) {
+            BlockResyncManager.onBlockUpdate(null, hitResult.getBlockPos().offset(hitResult.getSide()), world, player, null);
+        }
+    }
 }

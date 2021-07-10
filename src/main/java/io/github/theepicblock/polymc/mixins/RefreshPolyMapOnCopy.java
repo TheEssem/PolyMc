@@ -15,29 +15,35 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program; If not, see <https://www.gnu.org/licenses>.
  */
-package io.github.theepicblock.polymc.mixins.item;
+package io.github.theepicblock.polymc.mixins;
 
+import io.github.theepicblock.polymc.api.PolyMap;
 import io.github.theepicblock.polymc.api.misc.PolyMapProvider;
-import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Minecraft checks to see if the inventories are out of sync.
- * But when using PolyMC a desync is intentional.
- * So we check here if the desync is actually a good desync or a bad desync.
- */
-@Mixin(ServerPlayNetworkHandler.class)
-public class InventoryDesyncPatch {
+@Mixin(ServerPlayerEntity.class)
+public class RefreshPolyMapOnCopy implements PolyMapProvider {
+    @Unique private PolyMap polyMap;
 
-    @Shadow public ServerPlayerEntity player;
+    @Override
+    public PolyMap getPolyMap() {
+        return polyMap;
+    }
 
-    @Redirect(method = "onClickSlot(Lnet/minecraft/network/packet/c2s/play/ClickSlotC2SPacket;)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/item/ItemStack;areEqual(Lnet/minecraft/item/ItemStack;Lnet/minecraft/item/ItemStack;)Z"))
-    public boolean areEqualRedirect(ItemStack left, ItemStack right) {
-        return ItemStack.areEqual(left, PolyMapProvider.getPolyMap(this.player).getClientItem(right));
+    @Override
+    public void setPolyMap(PolyMap map) {
+        polyMap = map;
+    }
+
+    @Inject(method = "copyFrom", at = @At("RETURN"))
+    private void copyInject(ServerPlayerEntity oldPlayer, boolean alive, CallbackInfo ci) {
+        this.refreshUsedPolyMap();
     }
 }

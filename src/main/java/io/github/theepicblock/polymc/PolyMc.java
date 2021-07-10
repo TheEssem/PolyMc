@@ -20,15 +20,16 @@ package io.github.theepicblock.polymc;
 import io.github.theepicblock.polymc.api.PolyMap;
 import io.github.theepicblock.polymc.api.PolyMcEntrypoint;
 import io.github.theepicblock.polymc.api.PolyRegistry;
+import io.github.theepicblock.polymc.api.misc.PolyMapProvider;
 import io.github.theepicblock.polymc.impl.PolyMcCommands;
 import io.github.theepicblock.polymc.impl.generator.Generator;
 import io.github.theepicblock.polymc.impl.misc.logging.Log4JWrapper;
 import io.github.theepicblock.polymc.impl.misc.logging.SimpleLogger;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.server.network.ServerPlayerEntity;
 import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 
@@ -46,21 +47,19 @@ public class PolyMc implements ModInitializer {
     public static void generatePolyMap() {
         PolyRegistry registry = new PolyRegistry();
 
-        //Let mods register polys via the api
+        // Register default global ItemPolys
+        Generator.addDefaultGlobalItemPolys(registry);
+
+        // Let mods register polys via the api
         List<PolyMcEntrypoint> entrypoints = FabricLoader.getInstance().getEntrypoints("polymc", PolyMcEntrypoint.class);
         for (PolyMcEntrypoint entrypointEntry : entrypoints) {
             entrypointEntry.registerPolys(registry);
         }
 
-        //Auto generate the rest
+        // Auto generate the rest
         Generator.generateMissing(registry);
 
         map = registry.build();
-    }
-
-    @Override
-    public void onInitialize() {
-        PolyMcCommands.registerCommands();
     }
 
     /**
@@ -75,5 +74,15 @@ public class PolyMc implements ModInitializer {
             throw new NullPointerException("Tried to access the PolyMap before it was initialized");
         }
         return map;
+    }
+
+    @Override
+    public void onInitialize() {
+        PolyMcCommands.registerCommands();
+        ServerPlayConnectionEvents.INIT.register((handler, server) -> {
+            // Updates the PolyMap that the player uses as soon as the network handler is initialized
+            // see ServerPlayNetworkHandler.<init>
+            ((PolyMapProvider)(handler.player)).refreshUsedPolyMap();
+        });
     }
 }

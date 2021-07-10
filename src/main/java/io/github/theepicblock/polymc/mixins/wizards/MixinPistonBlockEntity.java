@@ -23,12 +23,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(PistonBlockEntity.class)
 public abstract class MixinPistonBlockEntity extends BlockEntity {
+    public MixinPistonBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
+    }
+
     @Shadow private BlockState pushedBlock;
-
     @Shadow protected abstract float getAmountExtended(float progress);
-
     @Shadow private float progress;
     @Shadow private Direction facing;
+
     @Unique
     private final PolyMapMap<Wizard> wizards = new PolyMapMap<>((map) -> {
         if (!(world instanceof ServerWorld)) return null;
@@ -36,15 +39,15 @@ public abstract class MixinPistonBlockEntity extends BlockEntity {
         BlockPoly poly = map.getBlockPoly(this.pushedBlock.getBlock());
         if (poly != null && poly.hasWizard()) {
             return poly.createWizard((ServerWorld)this.world,
-                    Vec3d.of(this.getPos()).add(0.5,0,0.5),
+                    Vec3d.of(this.getPos()).add(0.5, 0, 0.5),
                     Wizard.WizardState.FALLING_BLOCK);
         }
         return null;
     });
 
     @Override
-    public void setLocation(World world, BlockPos pos) {
-        super.setLocation(world, pos);
+    public void setWorld(World world) {
+        super.setWorld(world);
     }
 
     @Override
@@ -52,8 +55,8 @@ public abstract class MixinPistonBlockEntity extends BlockEntity {
         super.markRemoved();
     }
 
-    @Inject(method = "setLocation(Lnet/minecraft/world/World;Lnet/minecraft/util/math/BlockPos;)V", at = @At("RETURN"))
-    private void onInit(World world, BlockPos pos, CallbackInfo ci) {
+    @Inject(method = "setWorld(Lnet/minecraft/world/World;)V", at = @At("RETURN"))
+    private void onInit(World world, CallbackInfo ci) {
         if (!world.isClient) {
             ((ServerWorld)world).getChunkManager().threadedAnvilChunkStorage.getPlayersWatchingChunk(new ChunkPos(this.getPos()), false).forEach((player) -> {
                 Wizard wiz = wizards.get(PolyMapProvider.getPolyMap(player));
@@ -62,15 +65,17 @@ public abstract class MixinPistonBlockEntity extends BlockEntity {
         }
     }
 
-    @Inject(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/block/entity/PistonBlockEntity;pushEntities(F)V"))
-    private void onTick(CallbackInfo ci) {
-        float d = this.getAmountExtended(this.progress);
+    @Inject(method = "tick(Lnet/minecraft/world/World;Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/block/BlockState;Lnet/minecraft/block/entity/PistonBlockEntity;)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/block/entity/PistonBlockEntity;pushEntities(Lnet/minecraft/world/World;Lnet/minecraft/util/math/BlockPos;FLnet/minecraft/block/entity/PistonBlockEntity;)V"))
+    private static void onTick(World world, BlockPos pos, BlockState state, PistonBlockEntity blockEntity, CallbackInfo ci) {
+        MixinPistonBlockEntity be = (MixinPistonBlockEntity)(Object)blockEntity;
 
-        wizards.forEach((polyMap, wizard) -> {
-            if (wizard != null) wizard.updatePosition(Vec3d.of(this.getPos()).add(
-                    0.5+d*this.facing.getOffsetX(),
-                    d*this.facing.getOffsetY(),
-                    0.5+d*this.facing.getOffsetZ()));
+        float d = be.getAmountExtended(be.progress);
+
+        be.wizards.forEach((polyMap, wizard) -> {
+            if (wizard != null) wizard.updatePosition(Vec3d.of(be.getPos()).add(
+                    0.5+d*be.facing.getOffsetX(),
+                    d*be.facing.getOffsetY(),
+                    0.5+d*be.facing.getOffsetZ()));
         });
     }
 
@@ -79,9 +84,5 @@ public abstract class MixinPistonBlockEntity extends BlockEntity {
         wizards.forEach((polyMap, wizard) -> {
             if (wizard != null) wizard.onRemove();
         });
-    }
-
-    public MixinPistonBlockEntity(BlockEntityType<?> type) {
-        super(type);
     }
 }

@@ -17,17 +17,10 @@
  */
 package io.github.theepicblock.polymc.impl.resource;
 
-import com.swordglowsblue.artifice.api.ArtificeResourcePack;
-import com.swordglowsblue.artifice.common.ArtificeRegistry;
-import com.swordglowsblue.artifice.impl.ArtificeResourcePackImpl;
-import io.github.theepicblock.polymc.PolyMc;
 import io.github.theepicblock.polymc.api.resource.ResourcePackMaker;
 import io.github.theepicblock.polymc.impl.Util;
 import io.github.theepicblock.polymc.impl.misc.logging.SimpleLogger;
-import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.FabricLoader;
-import net.fabricmc.loader.api.ModContainer;
-import net.minecraft.resource.ResourceType;
 import org.apache.commons.io.FileUtils;
 
 import java.io.IOException;
@@ -36,8 +29,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
-import java.util.Optional;
-import java.util.function.Consumer;
 
 /**
  * This class copies all assets into a temp folder. Then uses that to generate the resource pack, instead of getting the assets straight from the jars.
@@ -55,38 +46,12 @@ public class AdvancedResourcePackMaker extends ResourcePackMaker {
             Path assets = mod.getPath("assets");
             if (!Files.exists(assets)) return;
             try {
-                Util.copyAll(assets,tempLocation);
+                Util.copyAll(assets, tempLocation);
             } catch (IOException e) {
                 logger.warn("Failed to get resources from mod " + mod.getMetadata().getId());
                 e.printStackTrace();
             }
         });
-
-        //Artifice provides a list with virtual resource packs. But it only exists on the client. We can import them to use the assets
-        if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
-            Optional<ModContainer> artifice = FabricLoader.getInstance().getModContainer("artifice");
-            if (artifice.isPresent()) {
-                ArtificeRegistry.ASSETS.forEach((this::importArtificePack));
-            }
-        }
-    }
-
-    @Override
-    public void importArtificePack(Object pack) {
-        if (pack instanceof ArtificeResourcePack) {
-            ArtificeResourcePack aPack = (ArtificeResourcePack)pack;
-            try {
-                Path artLoc = FabricLoader.getInstance().getGameDir().relativize(tempLocation);
-                aPack.dumpResources(artLoc.toString());
-            } catch (IOException e) {
-                logger.warn(String.format("Failed to get resources from artifice pack '%s'", aPack.getName()));
-                logger.warn(e);
-            }
-        }
-        if (pack instanceof Consumer) {
-            //noinspection unchecked
-            importArtificePack(new ArtificeResourcePackImpl(ResourceType.CLIENT_RESOURCES, (Consumer<ArtificeResourcePack.ClientResourcePackBuilder>)pack));
-        }
     }
 
     @Override

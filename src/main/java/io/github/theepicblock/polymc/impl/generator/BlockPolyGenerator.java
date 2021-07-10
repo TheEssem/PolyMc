@@ -102,7 +102,7 @@ public class BlockPolyGenerator {
             //This is neither full not empty, yet it's invisible. So the other strategies won't work.
             //Default to stone
             return new SimpleReplacementPoly(Blocks.STONE);
-         }
+        }
 
         //=== FLUIDS ===
         if (block instanceof FluidBlock) {
@@ -110,7 +110,7 @@ public class BlockPolyGenerator {
         }
 
         //=== LEAVES ===
-        if (block instanceof LeavesBlock || block.isIn(BlockTags.LEAVES)) { //TODO I don't like that leaves can be set tags in datapacks, it might cause issues. However, as not every leaf block extends LeavesBlock I can't see much of a better option. Except to maybe check the id if it ends on "_leaves"
+        if (block instanceof LeavesBlock || BlockTags.LEAVES.contains(block)) { //TODO I don't like that leaves can be set tags in datapacks, it might cause issues. However, as not every leaf block extends LeavesBlock I can't see much of a better option. Except to maybe check the id if it ends on "_leaves"
             try {
                 return new SingleUnusedBlockStatePoly(builder, BlockStateProfile.LEAVES_PROFILE);
             } catch (BlockStateManager.StateLimitReachedException ignored) {}
@@ -162,14 +162,14 @@ public class BlockPolyGenerator {
         }
 
         //=== FARMLAND-LIKE BLOCKS ===
-        if (Util.areEqual(collisionShape, Blocks.FARMLAND.getCollisionShape(Blocks.FARMLAND.getDefaultState(),fakeWorld,BlockPos.ORIGIN,ShapeContext.absent()))) {
+        if (Util.areEqual(collisionShape, Blocks.FARMLAND.getCollisionShape(Blocks.FARMLAND.getDefaultState(), fakeWorld, BlockPos.ORIGIN, ShapeContext.absent()))) {
             try {
                 return new UnusedBlockStatePoly(block, builder, BlockStateProfile.FARMLAND_PROFILE);
             } catch (BlockStateManager.StateLimitReachedException ignored) {}
         }
 
         //=== CACTUS-LIKE BLOCKS ===
-        if (Util.areEqual(collisionShape, Blocks.CACTUS.getCollisionShape(Blocks.CACTUS.getDefaultState(),fakeWorld,BlockPos.ORIGIN,ShapeContext.absent()))) {
+        if (Util.areEqual(collisionShape, Blocks.CACTUS.getCollisionShape(Blocks.CACTUS.getDefaultState(), fakeWorld, BlockPos.ORIGIN, ShapeContext.absent()))) {
             try {
                 return new SingleUnusedBlockStatePoly(builder, BlockStateProfile.CACTUS_PROFILE);
             } catch (BlockStateManager.StateLimitReachedException ignored) {}
@@ -188,7 +188,7 @@ public class BlockPolyGenerator {
         try {
             builder.registerBlockPoly(block, generatePoly(block, builder));
         } catch (Exception e) {
-            PolyMc.LOGGER.error("Failed to generate a poly for block "+block.getTranslationKey());
+            PolyMc.LOGGER.error("Failed to generate a poly for block " + block.getTranslationKey());
             e.printStackTrace();
             PolyMc.LOGGER.error("Attempting to recover by using a default poly. Please report this");
             builder.registerBlockPoly(block, new SimpleReplacementPoly(Blocks.RED_STAINED_GLASS));
@@ -216,9 +216,8 @@ public class BlockPolyGenerator {
         public FakedWorld(BlockState block) {
             blockState = block;
 
-            if (blockState.getBlock() instanceof BlockEntityProvider) {
-                BlockEntityProvider provider = (BlockEntityProvider)blockState.getBlock();
-                blockEntity = provider.createBlockEntity(this);
+            if (blockState.getBlock() instanceof BlockEntityProvider beProvider) {
+                blockEntity = beProvider.createBlockEntity(BlockPos.ORIGIN, blockState);
             } else {
                 blockEntity = null;
             }
@@ -246,6 +245,16 @@ public class BlockPolyGenerator {
                 return blockState.getFluidState();
             }
             return null;
+        }
+
+        @Override
+        public int getHeight() {
+            return 255;
+        }
+
+        @Override
+        public int getBottomY() {
+            return 0;
         }
     }
 }
