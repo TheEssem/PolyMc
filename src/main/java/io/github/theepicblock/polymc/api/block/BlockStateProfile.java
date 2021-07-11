@@ -23,6 +23,7 @@ import io.github.theepicblock.polymc.impl.poly.block.ConditionalSimpleBlockPoly;
 import io.github.theepicblock.polymc.impl.poly.block.PropertyRetainingReplacementPoly;
 import io.github.theepicblock.polymc.impl.poly.block.SimpleReplacementPoly;
 import net.minecraft.block.*;
+import net.minecraft.block.enums.SculkSensorPhase;
 import net.minecraft.state.property.Properties;
 
 import java.util.function.BiConsumer;
@@ -84,6 +85,11 @@ public class BlockStateProfile {
         return moisture != 0 && moisture != 7;
     };
     private static final Predicate<BlockState> POWERED_FILTER = (blockState) -> blockState.get(Properties.POWERED) == true;
+    private static final Predicate<BlockState> SCULK_FILTER = (blockState) -> {
+        int power = blockState.get(SculkSensorBlock.POWER);
+        SculkSensorPhase phase = blockState.get(SculkSensorBlock.SCULK_SENSOR_PHASE);
+        return power != 0 || phase == SculkSensorPhase.COOLDOWN;
+    };
 
     //ON FIRST REGISTERS
     private static final BiConsumer<Block,PolyRegistry> DEFAULT_ON_FIRST_REGISTER = (block, polyRegistry) -> polyRegistry.registerBlockPoly(block, new SimpleReplacementPoly(block.getDefaultState()));
@@ -131,6 +137,20 @@ public class BlockStateProfile {
             polyRegistry.registerBlockPoly(block, new SimpleReplacementPoly(block.getDefaultState()));
         }
     };
+    private static final BiConsumer<Block,PolyRegistry> SCULK_ON_FIRST_REGISTER = (block, polyRegistry) -> {
+        polyRegistry.registerBlockPoly(block, new BlockPoly() {
+            @Override
+            public BlockState getClientBlock(BlockState input) {
+                SculkSensorPhase phase = input.get(SculkSensorBlock.SCULK_SENSOR_PHASE);
+                if (phase == SculkSensorPhase.INACTIVE || phase == SculkSensorPhase.COOLDOWN) {
+                    return input.with(SculkSensorBlock.SCULK_SENSOR_PHASE, SculkSensorPhase.INACTIVE).with(SculkSensorBlock.POWER, 0);
+                } else {
+                    return input.with(SculkSensorBlock.SCULK_SENSOR_PHASE, SculkSensorPhase.ACTIVE).with(SculkSensorBlock.POWER, 0);
+                }
+            }
+            @Override public void addToResourcePack(Block block, ResourcePackMaker pack) {}
+        });
+    };
     private static final BiConsumer<Block,PolyRegistry> PETRIFIED_OAK_SLAB_ON_FIRST_REGISTER = (block, polyRegistry) -> polyRegistry.registerBlockPoly(block, new PropertyRetainingReplacementPoly(Blocks.OAK_SLAB));
     private static final BiConsumer<Block,PolyRegistry> FARMLAND_ON_FIRST_REGISTER = (block, polyRegistry) -> polyRegistry.registerBlockPoly(block, new ConditionalSimpleBlockPoly(Blocks.FARMLAND.getDefaultState(), FARMLAND_FILTER));
     private static final BiConsumer<Block,PolyRegistry> POWERED_BLOCK_ON_FIRST_REGISTER = (block, polyRegistry) -> polyRegistry.registerBlockPoly(block, (BlockPolyPredicate)(block2) -> block2.with(Properties.POWERED, false));
@@ -140,6 +160,7 @@ public class BlockStateProfile {
     public static final BlockStateProfile LEAVES_PROFILE = getProfileWithDefaultFilter("leaves", LEAVES_BLOCKS);
     public static final BlockStateProfile NO_COLLISION_PROFILE = new BlockStateProfile("blocks without collisions", NO_COLLISION_BLOCKS, NO_COLLISION_FILTER, NO_COLLISION_ON_FIRST_REGISTER);
     public static final BlockStateProfile PETRIFIED_OAK_SLAB_PROFILE = new BlockStateProfile("petrified oak slab", Blocks.PETRIFIED_OAK_SLAB, ALWAYS_TRUE_FILTER, PETRIFIED_OAK_SLAB_ON_FIRST_REGISTER);
+    public static final BlockStateProfile LOWER_SLAB_PROFILE = new BlockStateProfile("lower slab", Blocks.SCULK_SENSOR, SCULK_FILTER, SCULK_ON_FIRST_REGISTER);
     public static final BlockStateProfile FARMLAND_PROFILE = new BlockStateProfile("farmland", Blocks.FARMLAND, FARMLAND_FILTER, FARMLAND_ON_FIRST_REGISTER);
     public static final BlockStateProfile CACTUS_PROFILE = getProfileWithDefaultFilter("cactus", Blocks.CACTUS);
     public static final BlockStateProfile KELP_PROFILE = getProfileWithDefaultFilter("kelp", Blocks.KELP);

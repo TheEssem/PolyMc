@@ -155,9 +155,10 @@ public class BlockPolyGenerator {
         if (block instanceof SlabBlock) {
             try {
                 //return new UnusedBlockStatePoly(block, builder, BlockStateProfile.PETRIFIED_OAK_SLAB_PROFILE);
-                return new ReplacementFallbackUnusedBlockStatePoly(block, builder,
-                        BlockStateProfile.NOTE_BLOCK_PROFILE,
-                        (blockState) -> ((BlockState)blockState).get(SlabBlock.TYPE) == SlabType.DOUBLE);
+                return new SwitchingUnusedBlockStatePoly(block, builder,
+                        BlockStateProfile.NOTE_BLOCK_PROFILE, // Chosen if the block state is a full block
+                        BlockStateProfile.LOWER_SLAB_PROFILE, // Chosen if the block state is a lower half slab block
+                        (blockState) -> ((BlockState)blockState).get(SlabBlock.TYPE) == SlabType.BOTTOM);
             } catch (BlockStateManager.StateLimitReachedException ignored) {}
         }
 
