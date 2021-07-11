@@ -60,6 +60,7 @@ public class BlockStateProfile {
     private static final Block[] NO_COLLISION_BLOCKS = {Blocks.SUGAR_CANE,
             Blocks.ACACIA_SAPLING, Blocks.BIRCH_SAPLING, Blocks.DARK_OAK_SAPLING, Blocks.JUNGLE_SAPLING, Blocks.OAK_SAPLING, Blocks.SPRUCE_SAPLING,
             Blocks.TRIPWIRE, Blocks.POTATOES, Blocks.CARROTS, Blocks.HEAVY_WEIGHTED_PRESSURE_PLATE, Blocks.LIGHT_WEIGHTED_PRESSURE_PLATE};
+    private static final Block[] SLAB_BLOCKS = {Blocks.PETRIFIED_OAK_SLAB,Blocks.WAXED_CUT_COPPER_SLAB,Blocks.WAXED_EXPOSED_CUT_COPPER_SLAB,Blocks.WAXED_OXIDIZED_CUT_COPPER_SLAB,Blocks.WAXED_WEATHERED_CUT_COPPER_SLAB};
     private static final Block[] DOOR_BLOCKS = {Blocks.ACACIA_DOOR,Blocks.BIRCH_DOOR,Blocks.DARK_OAK_DOOR,Blocks.JUNGLE_DOOR,Blocks.OAK_DOOR,Blocks.SPRUCE_DOOR,Blocks.CRIMSON_DOOR,Blocks.WARPED_DOOR};
     private static final Block[] TRAPDOOR_BLOCKS = {Blocks.ACACIA_TRAPDOOR,Blocks.BIRCH_TRAPDOOR,Blocks.DARK_OAK_TRAPDOOR,Blocks.JUNGLE_TRAPDOOR,Blocks.OAK_TRAPDOOR,Blocks.SPRUCE_TRAPDOOR,Blocks.CRIMSON_TRAPDOOR,Blocks.WARPED_TRAPDOOR};
 
@@ -151,7 +152,19 @@ public class BlockStateProfile {
             @Override public void addToResourcePack(Block block, ResourcePackMaker pack) {}
         });
     };
-    private static final BiConsumer<Block,PolyRegistry> PETRIFIED_OAK_SLAB_ON_FIRST_REGISTER = (block, polyRegistry) -> polyRegistry.registerBlockPoly(block, new PropertyRetainingReplacementPoly(Blocks.OAK_SLAB));
+    private static final BiConsumer<Block,PolyRegistry> SLAB_ON_FIRST_REGISTER = (block, polyRegistry) -> {
+        if (block == Blocks.PETRIFIED_OAK_SLAB) {
+            polyRegistry.registerBlockPoly(block, new PropertyRetainingReplacementPoly(Blocks.OAK_SLAB));
+        } else if (block == Blocks.WAXED_CUT_COPPER_SLAB) {
+            polyRegistry.registerBlockPoly(block, new PropertyRetainingReplacementPoly(Blocks.CUT_COPPER_SLAB));
+        } else if (block == Blocks.WAXED_EXPOSED_CUT_COPPER_SLAB) {
+            polyRegistry.registerBlockPoly(block, new PropertyRetainingReplacementPoly(Blocks.EXPOSED_CUT_COPPER_SLAB));
+        } else if (block == Blocks.WAXED_OXIDIZED_CUT_COPPER_SLAB) {
+            polyRegistry.registerBlockPoly(block, new PropertyRetainingReplacementPoly(Blocks.OXIDIZED_CUT_COPPER_SLAB));
+        } else if (block == Blocks.WAXED_WEATHERED_CUT_COPPER_SLAB) {
+            polyRegistry.registerBlockPoly(block, new PropertyRetainingReplacementPoly(Blocks.WEATHERED_CUT_COPPER_SLAB));
+        }
+    };
     private static final BiConsumer<Block,PolyRegistry> FARMLAND_ON_FIRST_REGISTER = (block, polyRegistry) -> polyRegistry.registerBlockPoly(block, new ConditionalSimpleBlockPoly(Blocks.FARMLAND.getDefaultState(), FARMLAND_FILTER));
     private static final BiConsumer<Block,PolyRegistry> POWERED_BLOCK_ON_FIRST_REGISTER = (block, polyRegistry) -> polyRegistry.registerBlockPoly(block, (BlockPolyPredicate)(block2) -> block2.with(Properties.POWERED, false));
 
@@ -159,7 +172,7 @@ public class BlockStateProfile {
     public static final BlockStateProfile NOTE_BLOCK_PROFILE = getProfileWithDefaultFilter("note block", Blocks.NOTE_BLOCK);
     public static final BlockStateProfile LEAVES_PROFILE = getProfileWithDefaultFilter("leaves", LEAVES_BLOCKS);
     public static final BlockStateProfile NO_COLLISION_PROFILE = new BlockStateProfile("blocks without collisions", NO_COLLISION_BLOCKS, NO_COLLISION_FILTER, NO_COLLISION_ON_FIRST_REGISTER);
-    public static final BlockStateProfile PETRIFIED_OAK_SLAB_PROFILE = new BlockStateProfile("petrified oak slab", Blocks.PETRIFIED_OAK_SLAB, ALWAYS_TRUE_FILTER, PETRIFIED_OAK_SLAB_ON_FIRST_REGISTER);
+    public static final BlockStateProfile SLAB_PROFILE = new BlockStateProfile("slab", SLAB_BLOCKS, ALWAYS_TRUE_FILTER, SLAB_ON_FIRST_REGISTER);
     public static final BlockStateProfile LOWER_SLAB_PROFILE = new BlockStateProfile("lower slab", Blocks.SCULK_SENSOR, SCULK_FILTER, SCULK_ON_FIRST_REGISTER);
     public static final BlockStateProfile FARMLAND_PROFILE = new BlockStateProfile("farmland", Blocks.FARMLAND, FARMLAND_FILTER, FARMLAND_ON_FIRST_REGISTER);
     public static final BlockStateProfile CACTUS_PROFILE = getProfileWithDefaultFilter("cactus", Blocks.CACTUS);
