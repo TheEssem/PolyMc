@@ -19,12 +19,14 @@ package io.github.theepicblock.polymc.api;
 
 import com.google.common.collect.ImmutableMap;
 import io.github.theepicblock.polymc.api.block.BlockPoly;
+import io.github.theepicblock.polymc.api.entity.EntityPoly;
 import io.github.theepicblock.polymc.api.gui.GuiPoly;
 import io.github.theepicblock.polymc.api.item.ItemPoly;
-import io.github.theepicblock.polymc.mixins.block.implementations.WorldEventImplementation;
 import io.github.theepicblock.polymc.mixins.item.CreativeItemStackFix;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.ScreenHandlerType;
@@ -40,7 +42,12 @@ public interface PolyMap {
     /**
      * Converts the serverside representation of a block into a clientside one that should be sent to the client.
      */
-    BlockState getClientBlock(BlockState serverBlock);
+    default BlockState getClientBlock(BlockState serverBlock) {
+        BlockPoly poly = this.getBlockPoly(serverBlock.getBlock());
+        if (poly == null) return serverBlock;
+
+        return poly.getClientBlock(serverBlock);
+    }
 
     /**
      * Gets the {@link GuiPoly} that this PolyMap associates with this {@link ScreenHandlerType}.
@@ -50,17 +57,23 @@ public interface PolyMap {
 
     /**
      * Gets the {@link BlockPoly} that this PolyMap associates with this {@link Block}.
-     * @return A {@link BlockPoly} describing how to display this screen type on the client.
+     * @return A {@link BlockPoly} describing how to display this block on the client.
      */
     BlockPoly getBlockPoly(Block block);
 
     /**
-     * gets a map containing all itempolys that are registered in this map.
+     * Gets the {@link EntityPoly} that this PolyMap associates with this {@link EntityType}.
+     * @return A {@link EntityPoly}.
+     */
+    <T extends Entity> EntityPoly<T> getEntityPoly(EntityType<T> entity);
+
+    /**
+     * gets a map containing all {@link ItemPoly}s that are registered in this map.
      */
     ImmutableMap<Item,ItemPoly> getItemPolys();
 
     /**
-     * gets a map containing all blockpolys that are registered in this map.
+     * gets a map containing all {@link BlockPoly}s that are registered in this map.
      */
     ImmutableMap<Block,BlockPoly> getBlockPolys();
 
@@ -77,10 +90,10 @@ public interface PolyMap {
      * This is used to disable/enable miscellaneous patches
      * @see io.github.theepicblock.polymc.mixins.block.BlockBreakingPatch
      * @see io.github.theepicblock.polymc.mixins.CustomPacketDisabler
-     * @see io.github.theepicblock.polymc.mixins.TagSyncronizePatch
+     * @see io.github.theepicblock.polymc.mixins.tag.SerializedMixin
      * @see io.github.theepicblock.polymc.mixins.block.ResyncImplementation
-     * @see WorldEventImplementation
-     * @see io.github.theepicblock.polymc.mixins.gui.GuiHandlerIdImplementation
+     * @see io.github.theepicblock.polymc.impl.mixin.CustomBlockBreakingCheck#needsCustomBreaking(ServerPlayerEntity, Block)
+     * @see io.github.theepicblock.polymc.mixins.gui.GuiManagerImplementation
      * @see io.github.theepicblock.polymc.mixins.item.CustomRecipeFix
      */
     boolean isVanillaLikeMap();
