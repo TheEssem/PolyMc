@@ -17,11 +17,14 @@
  */
 package io.github.theepicblock.polymc.api;
 
-import com.google.common.collect.ImmutableMap;
 import io.github.theepicblock.polymc.api.block.BlockPoly;
 import io.github.theepicblock.polymc.api.entity.EntityPoly;
 import io.github.theepicblock.polymc.api.gui.GuiPoly;
+import io.github.theepicblock.polymc.api.item.ItemLocation;
 import io.github.theepicblock.polymc.api.item.ItemPoly;
+import io.github.theepicblock.polymc.api.resource.PolyMcResourcePack;
+import io.github.theepicblock.polymc.impl.misc.logging.SimpleLogger;
+import io.github.theepicblock.polymc.mixins.gui.GuiPolyImplementation;
 import io.github.theepicblock.polymc.mixins.item.CreativeItemStackFix;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -37,7 +40,7 @@ public interface PolyMap {
     /**
      * Converts the serverside representation of an item into a clientside one that should be sent to the client.
      */
-    ItemStack getClientItem(ItemStack serverItem, @Nullable ServerPlayerEntity player);
+    ItemStack getClientItem(ItemStack serverItem, @Nullable ServerPlayerEntity player, @Nullable ItemLocation location);
 
     /**
      * Converts the serverside representation of a block into a clientside one that should be sent to the client.
@@ -50,36 +53,36 @@ public interface PolyMap {
     }
 
     /**
-     * Gets the {@link GuiPoly} that this PolyMap associates with this {@link ScreenHandlerType}.
-     * @return A {@link GuiPoly} describing how to display this screen type on the client.
+     * Get the RawId of the client-state block
      */
-    GuiPoly getGuiPoly(ScreenHandlerType<?> serverGuiType);
+    default int getClientStateRawId(BlockState state, ServerPlayerEntity playerEntity) {
+        BlockState clientState = this.getClientBlock(state);
+        return Block.STATE_IDS.getRawId(clientState);
+    }
 
     /**
-     * Gets the {@link BlockPoly} that this PolyMap associates with this {@link Block}.
-     * @return A {@link BlockPoly} describing how to display this block on the client.
+     * @return the {@link ItemPoly} that this PolyMap associates with this {@link Item}.
+     */
+    ItemPoly getItemPoly(Item item);
+
+    /**
+     * @return the {@link BlockPoly} that this PolyMap associates with this {@link Block}.
      */
     BlockPoly getBlockPoly(Block block);
 
     /**
-     * Gets the {@link EntityPoly} that this PolyMap associates with this {@link EntityType}.
-     * @return A {@link EntityPoly}.
+     * @return the {@link GuiPoly} that this PolyMap associates with this {@link ScreenHandlerType}.
+     */
+    GuiPoly getGuiPoly(ScreenHandlerType<?> serverGuiType);
+
+    /**
+     * @return the {@link EntityPoly} that this PolyMap associates with this {@link EntityType}.
      */
     <T extends Entity> EntityPoly<T> getEntityPoly(EntityType<T> entity);
 
     /**
-     * gets a map containing all {@link ItemPoly}s that are registered in this map.
-     */
-    ImmutableMap<Item,ItemPoly> getItemPolys();
-
-    /**
-     * gets a map containing all {@link BlockPoly}s that are registered in this map.
-     */
-    ImmutableMap<Block,BlockPoly> getBlockPolys();
-
-    /**
      * Reverts the clientside item into the serverside representation.
-     * This should be the reverse of {@link #getClientItem(ItemStack, ServerPlayerEntity)}.
+     * This should be the reverse of {@link #getClientItem(ItemStack, ServerPlayerEntity, ItemLocation)}.
      * For optimization reasons, this method only needs to be implemented for items gained by players in creative mode.
      * @see CreativeItemStackFix
      */
@@ -93,8 +96,14 @@ public interface PolyMap {
      * @see io.github.theepicblock.polymc.mixins.tag.SerializedMixin
      * @see io.github.theepicblock.polymc.mixins.block.ResyncImplementation
      * @see io.github.theepicblock.polymc.impl.mixin.CustomBlockBreakingCheck#needsCustomBreaking(ServerPlayerEntity, Block)
-     * @see io.github.theepicblock.polymc.mixins.gui.GuiManagerImplementation
+     * @see GuiPolyImplementation
      * @see io.github.theepicblock.polymc.mixins.item.CustomRecipeFix
      */
     boolean isVanillaLikeMap();
+
+    boolean hasBlockWizards();
+
+    @Nullable PolyMcResourcePack generateResourcePack(SimpleLogger logger);
+
+    String dumpDebugInfo();
 }

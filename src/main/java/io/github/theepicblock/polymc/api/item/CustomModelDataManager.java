@@ -17,6 +17,7 @@
  */
 package io.github.theepicblock.polymc.api.item;
 
+import io.github.theepicblock.polymc.api.SharedValuesKey;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.item.Item;
@@ -28,6 +29,8 @@ import net.minecraft.util.Pair;
  * For example, a mod can request 100 CustomModelData values for a specific item. Then those will be reserved and another mod will get different values.
  */
 public class CustomModelDataManager {
+    public final static SharedValuesKey<CustomModelDataManager> KEY = new SharedValuesKey<>(registry -> new CustomModelDataManager(), null);
+
     public final static Item[] DEFAULT_ITEMS = {
             Items.STICK,
             Items.GLISTERING_MELON_SLICE,
@@ -81,17 +84,16 @@ public class CustomModelDataManager {
      */
     @Deprecated
     public int requestCMD(Item item, int amount) throws ArithmeticException {
-        try {
-            int current = customModelDataCounter.getInt(item); //this is the current CMD that we're at for this item/
-            if (current == 0) {
-                current = 1; //we should start at 1. Never 0
-            }
-            int newValue = Math.addExact(current, amount);
-            customModelDataCounter.put(item, newValue);
-            return current;
-        } catch (ArithmeticException e) {
+        int current = customModelDataCounter.getInt(item); //this is the current CMD that we're at for this item/
+        if (current == 0) {
+            current = 1; //we should start at 1. Never 0
+        }
+        int newValue = current + amount;
+        if (newValue > 16777215) { // The amount a float can store without precision loss
             throw new OutOfCustomModelDataValuesException(amount, new Item[]{item});
         }
+        customModelDataCounter.put(item, newValue);
+        return current;
     }
 
     /**
@@ -119,7 +121,7 @@ public class CustomModelDataManager {
             try {
                 Item item = getRoundRobin(items);
                 return new Pair<>(item, requestCMD(item, amount));
-            } catch (ArithmeticException ignored) {}
+            } catch (OutOfCustomModelDataValuesException ignored) {}
         } while (roundRobin != startingRR);
 
         throw new OutOfCustomModelDataValuesException(amount, items);

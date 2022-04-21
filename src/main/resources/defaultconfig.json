@@ -1,14 +1,12 @@
 {
-  "configVersion": 5,
+  "configVersion": 6,
   "disabledMixins": [
     "CustomPacketDisabler"
   ],
-  "resourcepack": {
-    "advancedDiscovery": false
-  },
   "misc": {
     "processSyncedBlockEventServerSide": [
       "minecraft:note_block"
     ]
-  }
+  },
+  "remapVanillaBlockIds": false
 }

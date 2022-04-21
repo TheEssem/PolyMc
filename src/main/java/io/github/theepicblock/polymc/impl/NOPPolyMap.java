@@ -1,11 +1,13 @@
 package io.github.theepicblock.polymc.impl;
 
-import com.google.common.collect.ImmutableMap;
 import io.github.theepicblock.polymc.api.PolyMap;
 import io.github.theepicblock.polymc.api.block.BlockPoly;
 import io.github.theepicblock.polymc.api.entity.EntityPoly;
 import io.github.theepicblock.polymc.api.gui.GuiPoly;
+import io.github.theepicblock.polymc.api.item.ItemLocation;
 import io.github.theepicblock.polymc.api.item.ItemPoly;
+import io.github.theepicblock.polymc.api.resource.PolyMcResourcePack;
+import io.github.theepicblock.polymc.impl.misc.logging.SimpleLogger;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
@@ -18,13 +20,18 @@ import org.jetbrains.annotations.Nullable;
 
 public class NOPPolyMap implements PolyMap {
     @Override
-    public ItemStack getClientItem(ItemStack serverItem, @Nullable ServerPlayerEntity player) {
+    public ItemStack getClientItem(ItemStack serverItem, @Nullable ServerPlayerEntity player, @Nullable ItemLocation location) {
         return serverItem;
     }
 
     @Override
     public BlockState getClientBlock(BlockState serverBlock) {
         return serverBlock;
+    }
+
+    @Override
+    public ItemPoly getItemPoly(Item item) {
+        return null;
     }
 
     @Override
@@ -43,16 +50,6 @@ public class NOPPolyMap implements PolyMap {
     }
 
     @Override
-    public ImmutableMap<Item,ItemPoly> getItemPolys() {
-        return null;
-    }
-
-    @Override
-    public ImmutableMap<Block,BlockPoly> getBlockPolys() {
-        return null;
-    }
-
-    @Override
     public ItemStack reverseClientItem(ItemStack clientItem) {
         return clientItem;
     }
@@ -60,5 +57,20 @@ public class NOPPolyMap implements PolyMap {
     @Override
     public boolean isVanillaLikeMap() {
         return false; //This disables patches meant for vanilla clients
+    }
+
+    @Override
+    public boolean hasBlockWizards() {
+        return false;
+    }
+
+    @Override
+    public @Nullable PolyMcResourcePack generateResourcePack(SimpleLogger logger) {
+        return null;
+    }
+
+    @Override
+    public String dumpDebugInfo() {
+        return "";
     }
 }

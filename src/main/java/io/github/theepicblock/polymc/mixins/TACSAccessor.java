@@ -1,8 +1,6 @@
 package io.github.theepicblock.polymc.mixins;
 
-import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ThreadedAnvilChunkStorage;
-import net.minecraft.util.math.ChunkPos;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.gen.Invoker;
@@ -13,7 +11,7 @@ public interface TACSAccessor {
     int getWatchDistance();
 
     @Invoker
-    static int callGetChebyshevDistance(ChunkPos pos, ServerPlayerEntity player, boolean useWatchedPosition) {
+    static boolean callIsOnDistanceEdge(int sourceChunkX, int sourceChunkZ, int playerChunkX, int playerChunkZ, int watchDistance) {
         throw new IllegalStateException();
     }
 }
