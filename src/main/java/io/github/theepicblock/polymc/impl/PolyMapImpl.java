@@ -47,14 +47,16 @@ import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.screen.ScreenHandlerType;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.LiteralText;
+import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.JsonHelper;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.FileWriter;
+import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 
@@ -100,7 +102,7 @@ public class PolyMapImpl implements PolyMap {
         NbtCompound originalNbt = serverItem.writeNbt(new NbtCompound());
 
         ItemPoly poly = itemPolys.get(serverItem.getItem());
-        if (poly != null) ret = poly.getClientItem(serverItem, location);
+        if (poly != null) ret = poly.getClientItem(serverItem, player, location);
 
         for (ItemTransformer globalPoly : globalItemPolys) {
             ret = globalPoly.transform(ret, player, location);
@@ -151,7 +153,7 @@ public class PolyMapImpl implements PolyMap {
 
         if (stack.isEmpty() && !input.isEmpty()) {
             stack = new ItemStack(Items.CLAY_BALL);
-            stack.setCustomName(new LiteralText("Invalid Item").formatted(Formatting.ITALIC));
+            stack.setCustomName(Text.literal("Invalid Item").formatted(Formatting.ITALIC));
         }
         return stack;
     }
@@ -170,6 +172,8 @@ public class PolyMapImpl implements PolyMap {
     public @Nullable PolyMcResourcePack generateResourcePack(SimpleLogger logger) {
         var moddedResources = new ModdedResourceContainerImpl();
         var pack = new ResourcePackImplementation();
+
+        PolyMc.LOGGER.info("Using: "+moddedResources);
 
         //Let mods register resources via the api
         List<PolyMcEntrypoint> entrypoints = FabricLoader.getInstance().getEntrypoints("polymc", PolyMcEntrypoint.class);
@@ -213,12 +217,12 @@ public class PolyMapImpl implements PolyMap {
             // Ignore fapi
             if (lang.getNamespace().equals("fabric")) continue;
             for (var stream : moddedResources.getInputStreams(lang.getNamespace(), lang.getPath())) {
-                try {
+                try (var streamReader = new InputStreamReader(stream, StandardCharsets.UTF_8)){
                     // Copy all of the language keys into the main map
-                    var languageObject = pack.getGson().fromJson(new InputStreamReader(stream, StandardCharsets.UTF_8), JsonObject.class);
+                    var languageObject = pack.getGson().fromJson(streamReader, JsonObject.class);
                     var mainLangMap = languageKeys.computeIfAbsent(lang.getPath(), (key) -> new HashMap<>());
                     languageObject.entrySet().forEach(entry -> mainLangMap.put(entry.getKey(), JsonHelper.asString(entry.getValue(), entry.getKey())));
-                } catch (JsonParseException e) {
+                } catch (JsonParseException | IOException e) {
                     logger.error("Couldn't parse lang file "+lang);
                     e.printStackTrace();
                 }
@@ -226,8 +230,8 @@ public class PolyMapImpl implements PolyMap {
         }
         // It doesn't actually matter which namespace the language files are under. We're just going to put them all under 'polymc-lang'
         languageKeys.forEach((path, translations) -> {
-            pack.setAsset("polymc-lang", path, (location, gson) -> {
-                try (var writer = new FileWriter(location.toFile(), StandardCharsets.UTF_8)) {
+            pack.setAsset("polymc-lang", path, (stream, gson) -> {
+                try (var writer = new OutputStreamWriter(stream)) {
                     gson.toJson(translations, writer);
                 }
             });
@@ -254,12 +258,24 @@ public class PolyMapImpl implements PolyMap {
     public String dumpDebugInfo() {
         StringBuilder builder = new StringBuilder();
         builder.append("###########\n## ITEMS ##\n###########\n");
-        this.itemPolys.forEach((item, poly) -> {
-            addDebugProviderToDump(builder, item, item.getTranslationKey(), poly);
+        this.itemPolys
+                .entrySet()
+                .stream()
+                .sorted(Comparator.comparing(item -> item.getKey().getTranslationKey()))
+                .forEach(entry -> {
+                    var item = entry.getKey();
+                    var poly = entry.getValue();
+                    addDebugProviderToDump(builder, item, item.getTranslationKey(), poly);
         });
         builder.append("############\n## BLOCKS ##\n############\n");
-        this.blockPolys.forEach((block, poly) -> {
-            addDebugProviderToDump(builder, block, block.getTranslationKey(), poly);
+        this.blockPolys
+                .entrySet()
+                .stream()
+                .sorted(Comparator.comparing(block -> block.getKey().getTranslationKey()))
+                .forEach(entry -> {
+                    var block = entry.getKey();
+                    var poly = entry.getValue();
+                    addDebugProviderToDump(builder, block, block.getTranslationKey(), poly);
         });
         return builder.toString();
     }

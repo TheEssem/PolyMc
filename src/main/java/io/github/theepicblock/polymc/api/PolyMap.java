@@ -45,19 +45,11 @@ public interface PolyMap {
     /**
      * Converts the serverside representation of a block into a clientside one that should be sent to the client.
      */
-    default BlockState getClientBlock(BlockState serverBlock) {
+    default BlockState getClientState(BlockState serverBlock, @Nullable ServerPlayerEntity player) {
         BlockPoly poly = this.getBlockPoly(serverBlock.getBlock());
         if (poly == null) return serverBlock;
 
         return poly.getClientBlock(serverBlock);
-    }
-
-    /**
-     * Get the RawId of the client-state block
-     */
-    default int getClientStateRawId(BlockState state, ServerPlayerEntity playerEntity) {
-        BlockState clientState = this.getClientBlock(state);
-        return Block.STATE_IDS.getRawId(clientState);
     }
 
     /**
@@ -93,7 +85,6 @@ public interface PolyMap {
      * This is used to disable/enable miscellaneous patches
      * @see io.github.theepicblock.polymc.mixins.block.BlockBreakingPatch
      * @see io.github.theepicblock.polymc.mixins.CustomPacketDisabler
-     * @see io.github.theepicblock.polymc.mixins.tag.SerializedMixin
      * @see io.github.theepicblock.polymc.mixins.block.ResyncImplementation
      * @see io.github.theepicblock.polymc.impl.mixin.CustomBlockBreakingCheck#needsCustomBreaking(ServerPlayerEntity, Block)
      * @see GuiPolyImplementation

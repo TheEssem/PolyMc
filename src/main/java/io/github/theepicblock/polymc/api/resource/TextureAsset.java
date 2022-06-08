@@ -6,29 +6,37 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.io.OutputStream;
+import java.util.function.Supplier;
 
 public class TextureAsset implements PolyMcAsset {
-    private final @NotNull InputStream texture;
-    private final @Nullable InputStream mcmeta;
+    private final @NotNull Supplier<InputStream> texture;
+    private final @Nullable Supplier<InputStream> mcmeta;
 
-    public TextureAsset(@NotNull InputStream inner, @Nullable InputStream mcmeta) {
+    public TextureAsset(@NotNull Supplier<InputStream> inner, @Nullable Supplier<InputStream> mcmeta) {
         this.texture = inner;
         this.mcmeta = mcmeta;
     }
 
     public @NotNull InputStream getTexture() {
-        return texture;
+        return texture.get();
     }
 
     @Override
-    public void write(Path location, Gson gson) throws IOException {
-        Files.copy(texture, location, StandardCopyOption.REPLACE_EXISTING);
-        var metaPath = Path.of(location + ".mcmeta");
+    public void writeToStream(OutputStream stream, Gson gson) throws IOException {
+        try (var iStream = texture.get()) {
+            iStream.transferTo(stream);
+        }
+    }
+
+    @Override
+    public void writeMetaToStream(StreamSupplier streamS, Gson gson) throws IOException {
         if (mcmeta != null) {
-            Files.copy(mcmeta, metaPath, StandardCopyOption.REPLACE_EXISTING);
+            try (var iStream = mcmeta.get()) {
+                var oStream = streamS.get();
+                iStream.transferTo(oStream);
+                oStream.close();
+            }
         }
     }
 }

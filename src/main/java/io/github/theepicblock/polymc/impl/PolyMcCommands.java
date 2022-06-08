@@ -18,6 +18,8 @@
 package io.github.theepicblock.polymc.impl;
 
 import com.mojang.brigadier.Command;
+import com.mojang.brigadier.LiteralMessage;
+import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import io.github.theepicblock.polymc.PolyMc;
 import io.github.theepicblock.polymc.api.misc.PolyMapProvider;
@@ -25,14 +27,22 @@ import io.github.theepicblock.polymc.impl.misc.PolyDumper;
 import io.github.theepicblock.polymc.impl.misc.logging.CommandSourceLogger;
 import io.github.theepicblock.polymc.impl.misc.logging.ErrorTrackerWrapper;
 import io.github.theepicblock.polymc.impl.misc.logging.SimpleLogger;
+import io.github.theepicblock.polymc.impl.poly.wizard.PacketCountManager;
+import io.github.theepicblock.polymc.impl.poly.wizard.ThreadedWizardUpdater;
 import io.github.theepicblock.polymc.impl.resource.ResourcePackGenerator;
-import net.fabricmc.fabric.api.command.v1.CommandRegistrationCallback;
+import io.github.theepicblock.polymc.mixins.TACSAccessor;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtHelper;
+import net.minecraft.server.command.CommandManager;
+import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.LiteralText;
+import net.minecraft.text.HoverEvent;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 import java.io.IOException;
 
@@ -45,12 +55,12 @@ public class PolyMcCommands {
     private static boolean isGeneratingResources = false;
 
     public static void registerCommands() {
-        CommandRegistrationCallback.EVENT.register((dispatcher, dedicated) -> {
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             dispatcher.register(literal("polymc").requires(source -> source.hasPermissionLevel(2))
                     .then(literal("debug")
                             .then(literal("clientItem")
                                     .executes((context) -> {
-                                        var player = context.getSource().getPlayer();
+                                        var player = context.getSource().getPlayerOrThrow();
                                         var heldItem = player.getInventory().getMainHandStack();
                                         var polydItem = PolyMapProvider.getPolyMap(player).getClientItem(heldItem, player, null);
                                         var heldItemTag = polydItem.writeNbt(new NbtCompound());
@@ -60,9 +70,9 @@ public class PolyMcCommands {
                                     }))
                             .then(literal("replaceInventoryWithDebug")
                                     .executes((context) -> {
-                                        ServerPlayerEntity player = context.getSource().getPlayer();
+                                        ServerPlayerEntity player = context.getSource().getPlayerOrThrow();
                                         if (!player.isCreative()) {
-                                            throw new SimpleCommandExceptionType(new LiteralText("You must be in creative mode to execute this command. Keep in mind that this will wipe your inventory.")).create();
+                                            throw new SimpleCommandExceptionType(new LiteralMessage("You must be in creative mode to execute this command. Keep in mind that this will wipe your inventory.")).create();
                                         }
                                         for (int i = 0; i < player.getInventory().size(); i++) {
                                             if (i == 0) {
@@ -72,7 +82,11 @@ public class PolyMcCommands {
                                             }
                                         }
                                         return Command.SINGLE_SUCCESS;
-                                    })))
+                                    }))
+                            .then(literal("getWizardRestrictions")
+                                    .executes(context -> doGetWizardRestrictions(context, context.getSource().getPlayerOrThrow()))
+                                    .then(CommandManager.argument("player", EntityArgumentType.player())
+                                            .executes(context -> doGetWizardRestrictions(context, EntityArgumentType.getPlayer(context, "player"))))))
                     .then(literal("generate")
                             .then(literal("resources")
                                     .executes((context -> {
@@ -86,7 +100,7 @@ public class PolyMcCommands {
                                         isGeneratingResources = true;
                                         new Thread(() -> {
                                             try {
-                                                var pack = PolyMc.getMainMap().generateResourcePack(logger);
+                                                var pack = PolyMc.getMapForResourceGen().generateResourcePack(logger);
                                                 if (logger.errors != 0) {
                                                     commandSource.error("There have been errors whilst generating the resource pack. These are usually completely normal. It only means that PolyMc couldn't find some of the textures or models. See the console for more info.");
                                                 }
@@ -115,7 +129,7 @@ public class PolyMcCommands {
                                     .executes((context) -> {
                                         SimpleLogger logger = new CommandSourceLogger(context.getSource(), true);
                                         try {
-                                            PolyDumper.dumpPolyMap(PolyMc.getMainMap(), "PolyDump.txt", logger);
+                                            PolyDumper.dumpPolyMap(PolyMc.getMapForResourceGen(), "PolyDump.txt", logger);
                                         } catch (IOException e) {
                                             logger.error(e.getMessage());
                                             return 0;
@@ -128,5 +142,67 @@ public class PolyMcCommands {
                                         return Command.SINGLE_SUCCESS;
                                     }))));
         });
+    }
+
+    public static int doGetWizardRestrictions(CommandContext<ServerCommandSource> context, ServerPlayerEntity player) {
+        if (ConfigManager.getConfig().enableWizardThreading && !ThreadedWizardUpdater.MAIN.isOnThread()) {
+            ThreadedWizardUpdater.MAIN.executeSync(() -> doGetWizardRestrictions(context, player));
+        }
+
+        var trackerInfo = PacketCountManager.INSTANCE.getTrackerInfoForPlayer(player);
+        var source = context.getSource();
+
+        var headerColour = ConfigManager.getConfig().enableWizardThreading ? Formatting.GOLD : Formatting.AQUA;
+        source.sendFeedback(Text.literal("=== Packet restriction info for ").formatted(headerColour)
+                .append(player.getDisplayName())
+                .append(Text.literal(" ===").formatted(headerColour)), false);
+
+        var hoverTxt = Text.literal("Target packet count: ").append(Text.literal(PacketCountManager.MIN_PACKETS+"-"+PacketCountManager.MAX_PACKETS+" packets per tick").formatted(Formatting.AQUA));
+        source.sendFeedback(Text.literal("Average packet count per tick: ")
+                .styled(style -> style.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, hoverTxt)))
+                .append(packetCount2Text(trackerInfo.calculateAveragePacketCount())), false);
+        var packetHistory = Text.literal("History: [");
+        for (int i = 0; ; i++) {
+            packetHistory.append(packetCount2Text(trackerInfo.getPacketHistory()[i]));
+            if (i == trackerInfo.getPacketHistory().length-1) {
+                source.sendFeedback(packetHistory.append("]"), false);
+                break;
+            }
+            packetHistory.append(", ");
+        }
+
+        var restrictionLevelTxt = Text.literal(String.valueOf(trackerInfo.getRestrictionLevel()));
+        if (trackerInfo.getRestrictionLevel() > PacketCountManager.MAX_RESTRICTION) {
+            restrictionLevelTxt.formatted(Formatting.DARK_PURPLE);
+        } else if (trackerInfo.getRestrictionLevel() > 8) {
+            restrictionLevelTxt.formatted(Formatting.RED);
+        } else if (trackerInfo.getRestrictionLevel() > 5) {
+            restrictionLevelTxt.formatted(Formatting.YELLOW);
+        } else {
+            restrictionLevelTxt.formatted(Formatting.DARK_GREEN);
+        }
+        source.sendFeedback(Text.literal("Restriction level: ").append(restrictionLevelTxt), false);
+        var watchDistance = ((TACSAccessor)context.getSource().getWorld().getChunkManager().threadedAnvilChunkStorage).getWatchDistance();
+        source.sendFeedback(Text.literal("Watch distance/radius: ").append(Text.literal(watchDistance+"/"+PacketCountManager.getWatchRadiusFromDistance(watchDistance)).formatted(Formatting.AQUA)), false);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static Text packetCount2Text(int count) {
+        var t = Text.literal(String.valueOf(count));
+        if (count > PacketCountManager.MAX_PACKETS * 1.6) {
+            t.formatted(Formatting.RED);
+        } else if (count > PacketCountManager.MAX_PACKETS) {
+            t.formatted(Formatting.YELLOW);
+        } else if (count > PacketCountManager.MIN_PACKETS) {
+            t.formatted(Formatting.DARK_GREEN);
+        } else {
+            t.formatted(Formatting.GREEN);
+        }
+        var hoverText = Text.literal("")
+                .append(t.copy().setStyle(t.getStyle()))
+                .append(Text.literal(" packets per tick =  ").formatted(Formatting.RESET))
+                .append(Text.literal(String.valueOf(count * 20)).setStyle(t.getStyle()))
+                .append(Text.literal(" packets per second").formatted(Formatting.RESET));
+        return t.styled(style -> style.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, hoverText)));
     }
 }

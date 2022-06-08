@@ -26,10 +26,13 @@ import io.github.theepicblock.polymc.api.resource.json.JModelOverride;
 import io.github.theepicblock.polymc.impl.Util;
 import io.github.theepicblock.polymc.impl.misc.logging.SimpleLogger;
 import io.github.theepicblock.polymc.impl.resource.ResourceConstants;
+import io.github.theepicblock.polymc.mixins.item.EntityAttributeUuidAccessor;
 import net.minecraft.client.item.TooltipContext;
-import net.minecraft.entity.Entity;
+import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.entity.EntityGroup;
 import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.attribute.EntityAttributeModifier;
+import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -37,19 +40,25 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.nbt.NbtString;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.Pair;
 import net.minecraft.util.registry.Registry;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.UUID;
 
 /**
  * The most standard ItemPoly implementation
  */
 public class CustomModelDataPoly implements ItemPoly {
+    private static final UUID ATTACK_DAMAGE_MODIFIER_ID = EntityAttributeUuidAccessor.getATTACK_DAMAGE_MODIFIER_ID();
+    private static final UUID ATTACK_SPEED_MODIFIER_ID = EntityAttributeUuidAccessor.getATTACK_SPEED_MODIFIER_ID();
+
     protected final ItemStack cachedClientItem;
     protected final int cmdValue;
     protected final Item base;
@@ -85,7 +94,7 @@ public class CustomModelDataPoly implements ItemPoly {
     /**
      * Adds PolyMc specific tags to the item to display correctly on the client.
      * These shouldn't change depending on the stack as this method will be cached.
-     * For un-cached tags, use {@link #getClientItem(ItemStack, ItemLocation)}
+     * For un-cached tags, use {@link #getClientItem(ItemStack, ServerPlayerEntity, ItemLocation)}
      */
     protected void addCustomTagsToItem(ItemStack stack) {
         var item = stack.getItem();
@@ -93,24 +102,11 @@ public class CustomModelDataPoly implements ItemPoly {
         NbtCompound tag = stack.getOrCreateNbt();
         tag.putInt("CustomModelData", cmdValue);
         stack.setNbt(tag);
-
-        if (!tag.contains("AttributeModifiers", NbtElement.LIST_TYPE)) {
-            tag.put("AttributeModifiers", new NbtList());
-            try {
-                for (var slotType : EquipmentSlot.values()) {
-                    // This will only include the default attributes
-                    var attributes = base.getAttributeModifiers(slotType);
-                    for (var attribute : attributes.entries()) {
-                        stack.addAttributeModifier(attribute.getKey(), attribute.getValue(), slotType);
-                    }
-                }
-            } catch (Throwable ignored) {}
-        }
     }
 
     @SuppressWarnings("ConstantConditions")
     @Override
-    public ItemStack getClientItem(ItemStack input, @Nullable ItemLocation location) {
+    public ItemStack getClientItem(ItemStack input, @Nullable ServerPlayerEntity player, @Nullable ItemLocation location) {
         ItemStack serverItem = cachedClientItem;
         if (input.hasNbt()) {
             serverItem = cachedClientItem.copy();
@@ -122,11 +118,9 @@ public class CustomModelDataPoly implements ItemPoly {
 
         // Add custom tooltips. Don't bother showing them if the item's not in the inventory
         if (Util.isSectionVisible(input, ItemStack.TooltipSection.ADDITIONAL) && isInventory(location)) {
-            Entity holder = input.getHolder(); // This is not usually guaranteed to get the correct player. It works here though.
-
             var tooltips = new ArrayList<Text>(0);
             try {
-                input.getItem().appendTooltip(input, holder instanceof PlayerEntity player ? player.world : null, tooltips, TooltipContext.Default.NORMAL);
+                input.getItem().appendTooltip(input, player == null ? null : player.world, tooltips, TooltipContext.Default.NORMAL);
             } catch (Exception | NoClassDefFoundError ignored) {}
 
             if (!tooltips.isEmpty()) {
@@ -142,7 +136,7 @@ public class CustomModelDataPoly implements ItemPoly {
                         line = mText.setStyle(style);
                     }
 
-                    list.add(NbtString.of(Text.Serializer.toJson(line)));
+                    list.add(toStr(line));
                 }
 
                 // serveritem is always either the cached item or a copy, so it's okay to modify
@@ -169,9 +163,72 @@ public class CustomModelDataPoly implements ItemPoly {
             }
         }
 
+        // Add the attributes (This code has been copied from ItemStack#getTooltip)
+        if (isInventory(location) && Util.isSectionVisible(input, ItemStack.TooltipSection.MODIFIERS) && (!serverItem.hasNbt() || !serverItem.getNbt().contains("AttributeModifiers", NbtElement.LIST_TYPE))) {
+            var tag = serverItem.getOrCreateNbt();
+            tag.put("AttributeModifiers", new NbtList());
+            var display = serverItem.getOrCreateSubNbt("display");
+            var lore = display.getList("Lore", NbtElement.STRING_TYPE);
+            display.put("Lore", lore);
+            try {
+                for (var slotType : EquipmentSlot.values()) {
+                    // This will only include the default attributes
+                    var attributes = base.getAttributeModifiers(slotType);
+                    if (!attributes.isEmpty()) {
+                        lore.add(toStr(Text.empty()));
+                        lore.add(toStr(explicitlySetItalics((Text.translatable("item.modifiers." + slotType.getName())).formatted(Formatting.GRAY))));
+                        for (var entry : attributes.entries()) {
+                            var attributeModifier = entry.getValue();
+                            double v = attributeModifier.getValue();
+                            boolean bl = false;
+                            if (player != null) {
+                                if (attributeModifier.getId() == ATTACK_DAMAGE_MODIFIER_ID) {
+                                    v += player.getAttributeBaseValue(EntityAttributes.GENERIC_ATTACK_DAMAGE);
+                                    v += EnchantmentHelper.getAttackDamage(input, EntityGroup.DEFAULT);
+                                    bl = true;
+                                } else if (attributeModifier.getId() == ATTACK_SPEED_MODIFIER_ID) {
+                                    v += player.getAttributeBaseValue(EntityAttributes.GENERIC_ATTACK_SPEED);
+                                    bl = true;
+                                }
+                            }
+
+                            double e;
+                            if (attributeModifier.getOperation() != EntityAttributeModifier.Operation.MULTIPLY_BASE && attributeModifier.getOperation() != EntityAttributeModifier.Operation.MULTIPLY_TOTAL) {
+                                if (entry.getKey().equals(EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE)) {
+                                    e = v * 10.0;
+                                } else {
+                                    e = v;
+                                }
+                            } else {
+                                e = v * 100.0;
+                            }
+
+                            if (bl) {
+                                lore.add(toStr(explicitlySetItalics((Text.literal(" ")).append(Text.translatable("attribute.modifier.equals." + attributeModifier.getOperation().getId(), ItemStack.MODIFIER_FORMAT.format(e), Text.translatable(entry.getKey().getTranslationKey()))).formatted(Formatting.DARK_GREEN))));
+                            } else if (v > 0.0) {
+                                lore.add(toStr(explicitlySetItalics((Text.translatable("attribute.modifier.plus." + attributeModifier.getOperation().getId(), ItemStack.MODIFIER_FORMAT.format(e), Text.translatable(entry.getKey().getTranslationKey()))).formatted(Formatting.BLUE))));
+                            } else if (v < 0.0) {
+                                e *= -1.0;
+                                lore.add(toStr(explicitlySetItalics((Text.translatable("attribute.modifier.take." + attributeModifier.getOperation().getId(), ItemStack.MODIFIER_FORMAT.format(e), Text.translatable(entry.getKey().getTranslationKey()))).formatted(Formatting.RED))));
+                            }
+                        }
+                    }
+                }
+            } catch (Throwable ignored) {}
+        }
+
         serverItem.setCount(input.getCount());
         serverItem.setBobbingAnimationTime(input.getBobbingAnimationTime());
         return serverItem;
+    }
+
+    private static NbtString toStr(Text text) {
+        return NbtString.of(Text.Serializer.toJson(text));
+    }
+
+    private static MutableText explicitlySetItalics(MutableText in) {
+        in.setStyle(in.getStyle().withItalic(false));
+        return in;
     }
 
     private static boolean isInventory(@Nullable ItemLocation location) {

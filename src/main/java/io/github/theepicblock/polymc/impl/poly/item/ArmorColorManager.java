@@ -15,8 +15,6 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Objects;
 
@@ -133,14 +131,12 @@ public class ArmorColorManager implements SharedValuesKey.ResourceContainer {
             }
 
             // Add the output image to the resource pack
-            pack.setAsset("minecraft", "textures/models/armor/leather_layer_"+layer+".png", (path, gson) -> {
-                ImageIO.write(image, "png", path.toFile());
-            });
+            pack.setAsset("minecraft", "textures/models/armor/leather_layer_" + layer + ".png",
+                    (stream, gson) -> ImageIO.write(image, "png", stream));
 
             // Write something small to the overlay texture because apparently that's needed
-            pack.setAsset("minecraft", "textures/models/armor/leather_layer_"+layer+"_overlay.png", (path, gson) -> {
-                ImageIO.write(new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB), "png", path.toFile());
-            });
+            pack.setAsset("minecraft", "textures/models/armor/leather_layer_" + layer + "_overlay.png",
+                    (stream, gson) -> ImageIO.write(new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB), "png", stream));
         }
 
         try {
@@ -149,9 +145,8 @@ public class ArmorColorManager implements SharedValuesKey.ResourceContainer {
                 var stream = PolyMc.class.getResourceAsStream("/fancypants/rendertype_armor_cutout_no_cull." +string);
                 assert stream != null;
 
-                pack.setAsset("minecraft", "shaders/core/rendertype_armor_cutout_no_cull." + string, (path, gson) -> {
-                    Files.copy(stream, path, StandardCopyOption.REPLACE_EXISTING);
-                });
+                pack.setAsset("minecraft", "shaders/core/rendertype_armor_cutout_no_cull." + string,
+                        (oStream, gson) -> stream.transferTo(oStream));
             }
         } catch (Exception e) {
             logger.warn("Error occurred when writing armor shader!");

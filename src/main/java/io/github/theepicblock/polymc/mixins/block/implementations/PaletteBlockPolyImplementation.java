@@ -17,15 +17,16 @@
  */
 package io.github.theepicblock.polymc.mixins.block.implementations;
 
-import io.github.theepicblock.polymc.PolyMc;
 import io.github.theepicblock.polymc.api.PolyMap;
-import io.github.theepicblock.polymc.api.misc.PolyMapProvider;
+import io.github.theepicblock.polymc.impl.Util;
 import io.github.theepicblock.polymc.impl.mixin.ChunkPacketStaticHack;
 import me.jellysquid.mods.lithium.common.world.chunk.LithiumHashPalette;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.collection.IndexedIterable;
 import net.minecraft.world.chunk.ArrayPalette;
 import net.minecraft.world.chunk.BiMapPalette;
+import net.minecraft.world.chunk.SingularPalette;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -34,7 +35,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
  * Minecraft uses a different method to get ids when it sends chunks.
  * This Mixin makes sure that the blocks are polyd before they get sent to the client.
  */
-@Mixin(value = {ArrayPalette.class, BiMapPalette.class, LithiumHashPalette.class})
+@Mixin(value = {ArrayPalette.class, BiMapPalette.class, SingularPalette.class, LithiumHashPalette.class})
 public abstract class PaletteBlockPolyImplementation<T> {
     
     @Redirect(method = {"writePacket", "getPacketSize"}, at = @At(value = "INVOKE", target = "Lnet/minecraft/util/collection/IndexedIterable;getRawId(Ljava/lang/Object;)I"))
@@ -42,9 +43,9 @@ public abstract class PaletteBlockPolyImplementation<T> {
         if (object instanceof BlockState) {
             var player = ChunkPacketStaticHack.player.get();
 
-            PolyMap map = player == null ? PolyMc.getMainMap() : PolyMapProvider.getPolyMap(player);
+            PolyMap map = Util.tryGetPolyMap(player);
             //noinspection unchecked
-            return map.getClientStateRawId((BlockState)object, player);
+            return Block.STATE_IDS.getRawId(map.getClientState((BlockState)object, player));
         }
 
         return instance.getRawId(object);
