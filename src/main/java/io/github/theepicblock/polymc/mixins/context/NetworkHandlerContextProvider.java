@@ -21,8 +21,13 @@ import io.github.theepicblock.polymc.impl.mixin.PlayerContextContainer;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import net.minecraft.network.Packet;
+import net.minecraft.network.packet.c2s.play.HandSwingC2SPacket;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -45,4 +50,12 @@ public class NetworkHandlerContextProvider {
             ((PlayerContextContainer)packet).setPolyMcProvidedPlayer(this.player);
         }
     }
+
+    /*@Inject(method = "onHandSwing", at = @At("HEAD"))
+    public void onHandSwing(HandSwingC2SPacket packet, CallbackInfo ci) {
+        HitResult blockHit = player.raycast(4, 0, false);
+        System.out.println(player.world.getBlockState(((BlockHitResult)blockHit).getBlockPos()));
+        //player.interactionManager.tryBreakBlock(((BlockHitResult)blockHit).getBlockPos());
+        player.interactionManager.processBlockBreakingAction(((BlockHitResult)blockHit).getBlockPos(), PlayerActionC2SPacket.Action.START_DESTROY_BLOCK, player.getHorizontalFacing(), player.world.getTopY());
+    }*/
 }

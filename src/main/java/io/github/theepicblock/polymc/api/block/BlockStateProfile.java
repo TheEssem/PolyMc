@@ -168,33 +168,6 @@ public class BlockStateProfile {
                             .with(SlabBlock.WATERLOGGED, input.get(SlabBlock.WATERLOGGED));
                 }
             });
-        /*} else if (block == Blocks.POTATOES || block == Blocks.CARROTS) {
-            polyRegistry.registerBlockPoly(block, new BlockPoly() {
-                @Override
-                public BlockState getClientBlock(BlockState input) {
-                    int age = input.get(CropBlock.AGE);
-                    if (age == 7) {
-                        return input.with(CropBlock.AGE, 7);
-                    } else if (age >= 4) {
-                        return input.with(CropBlock.AGE, 4);
-                    } else if (age >= 2) {
-                        return input.with(CropBlock.AGE, 2);
-                    } else if (age >= 0) {
-                        return input.with(CropBlock.AGE, 0);
-                    } else {
-                        return input.with(CropBlock.AGE, 0);
-                    }
-                }
-                @Override public void addToResourcePack(Block block, ResourcePackMaker pack) {}
-            });
-        } else if (block == Blocks.HEAVY_WEIGHTED_PRESSURE_PLATE || block == Blocks.LIGHT_WEIGHTED_PRESSURE_PLATE) {
-            polyRegistry.registerBlockPoly(block, new BlockPoly() {
-                @Override
-                public BlockState getClientBlock(BlockState input) {
-                    return input.get(Properties.POWER) == 0 ? input.with(Properties.POWER, 0) : input.with(Properties.POWER, 1);
-                }
-                @Override public void addToResourcePack(Block block, ResourcePackMaker pack) {}
-            });*/
         } else {
             polyRegistry.registerBlockPoly(block, (input) -> {
                 if (input.get(SlabBlock.TYPE) == SlabType.DOUBLE) {
