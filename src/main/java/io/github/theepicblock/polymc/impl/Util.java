@@ -34,6 +34,9 @@ import net.minecraft.util.shape.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Map;
@@ -194,7 +197,7 @@ public class Util {
      */
     public static int getPolydRawIdFromState(BlockState state, ServerPlayerEntity playerEntity) {
         PolyMap map = Util.tryGetPolyMap(playerEntity);
-        return Block.STATE_IDS.getRawId(map.getClientState(state, playerEntity));
+        return map.getClientStateRawId(state, playerEntity);
     }
 
     /**
@@ -222,5 +225,11 @@ public class Util {
     public static Identifier parseId(String id) {
         if (id == null) return null;
         return Identifier.tryParse(id);
+    }
+
+    public static void writeJsonToStream(OutputStream stream, Gson gson, Object json) throws IOException {
+        try (var writer = new OutputStreamWriter(stream, StandardCharsets.UTF_8)) {
+            gson.toJson(json, writer);
+        }
     }
 }

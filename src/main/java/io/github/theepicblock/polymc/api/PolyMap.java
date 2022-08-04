@@ -23,17 +23,23 @@ import io.github.theepicblock.polymc.api.gui.GuiPoly;
 import io.github.theepicblock.polymc.api.item.ItemLocation;
 import io.github.theepicblock.polymc.api.item.ItemPoly;
 import io.github.theepicblock.polymc.api.resource.PolyMcResourcePack;
+import io.github.theepicblock.polymc.impl.Util;
 import io.github.theepicblock.polymc.impl.misc.logging.SimpleLogger;
+import io.github.theepicblock.polymc.mixins.entity.EntityAttributesFilteringMixin;
 import io.github.theepicblock.polymc.mixins.gui.GuiPolyImplementation;
 import io.github.theepicblock.polymc.mixins.item.CreativeItemStackFix;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
+import net.minecraft.entity.attribute.EntityAttribute;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.ScreenHandlerType;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.registry.Registry;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 public interface PolyMap {
@@ -50,6 +56,20 @@ public interface PolyMap {
         if (poly == null) return serverBlock;
 
         return poly.getClientBlock(serverBlock);
+    }
+
+    /**
+     * Get the raw id of the clientside blockstate.
+     */
+    @ApiStatus.Internal
+    default int getClientStateRawId(BlockState state, ServerPlayerEntity playerEntity) {
+        BlockState clientState = this.getClientState(state, playerEntity);
+
+        if (clientState == null) {
+            clientState = Blocks.STONE.getDefaultState();
+        }
+
+        return Block.STATE_IDS.getRawId(clientState);
     }
 
     /**
@@ -83,7 +103,6 @@ public interface PolyMap {
     /**
      * Specifies if this map is meant for vanilla-like clients
      * This is used to disable/enable miscellaneous patches
-     * @see io.github.theepicblock.polymc.mixins.block.BlockBreakingPatch
      * @see io.github.theepicblock.polymc.mixins.CustomPacketDisabler
      * @see io.github.theepicblock.polymc.mixins.block.ResyncImplementation
      * @see io.github.theepicblock.polymc.impl.mixin.CustomBlockBreakingCheck#needsCustomBreaking(ServerPlayerEntity, Block)
@@ -97,4 +116,12 @@ public interface PolyMap {
     @Nullable PolyMcResourcePack generateResourcePack(SimpleLogger logger);
 
     String dumpDebugInfo();
+
+    /**
+     * Used for filtering out attributes unsupported by client.
+     * @see EntityAttributesFilteringMixin
+     */
+    default boolean canReceiveEntityAttribute(EntityAttribute attribute) {
+        return Util.isVanilla(Registry.ATTRIBUTE.getId(attribute));
+    }
 }

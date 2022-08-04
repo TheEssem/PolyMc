@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
 import java.util.jar.JarFile;
@@ -22,7 +23,7 @@ import java.util.jar.JarFile;
 public class ClientJarResourcesImpl implements ClientJarResources {
     // Retrievable by using the getClientSha1 gradle task
     // Or you can look around https://launchermeta.mojang.com/mc/game/version_manifest_v2.json
-    private final static String CLIENT_SHA1 = "7e46fb47609401970e2818989fa584fd467cd036";
+    private final static String CLIENT_SHA1 = "90d438c3e432add8848a9f9f368ce5a52f6bc4a7";
     private final static String CLIENT_URL = "https://launcher.mojang.com/v1/objects/" + CLIENT_SHA1 + "/client.jar";
 
     private final JarFile clientJar;
@@ -56,8 +57,7 @@ public class ClientJarResourcesImpl implements ClientJarResources {
     }
 
     public static void downloadJar(File location, SimpleLogger logger) throws IOException {
-        logger.info("Something is requesting access to the vanilla client jar's resources. " +
-                "PolyMc is automatically downloading them.");
+        logger.info("PolyMc is automatically downloading the vanilla client jar to access a few of it's resources. This may take a while.");
         FileUtils.forceMkdirParent(location);
         FileUtils.copyURLToFile(new URL(CLIENT_URL), location, 10000, 10000);
         logger.info("Finished downloading the minecraft jar");
@@ -72,8 +72,14 @@ public class ClientJarResourcesImpl implements ClientJarResources {
             } catch (URISyntaxException ignored) {}
         }
 
-        // This location was copied from Polymer to prevent the client jar from being downloaded twice.
-        return loader.getGameDir().resolve("polymer_cache/client_jars/" + CLIENT_SHA1 + ".jar");
+        // We used to store our jars in this directory
+        var oldLocation = loader.getGameDir().resolve("polymer_cache/client_jars/" + CLIENT_SHA1 + ".jar");
+        if (Files.exists(oldLocation)) {
+            return oldLocation;
+        }
+
+        // We are using the same location as polymer uses, this ensures that the jar isn't downloaded twice
+        return loader.getGameDir().resolve("polymer_cache/cached_client_jars/" + CLIENT_SHA1 + ".jar");
     }
 
     @Override

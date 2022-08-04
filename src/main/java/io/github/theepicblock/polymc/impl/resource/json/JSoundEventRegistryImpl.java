@@ -11,11 +11,13 @@ import io.github.theepicblock.polymc.impl.resource.ResourceGenerationException;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 
 @ApiStatus.Internal
 public class JSoundEventRegistryImpl implements JSoundEventRegistry {
@@ -23,7 +25,7 @@ public class JSoundEventRegistryImpl implements JSoundEventRegistry {
     private Map<String, JSoundEvent> jsonRepresentation;
 
     public JSoundEventRegistryImpl() {
-        this.jsonRepresentation = new HashMap<>();
+        this.jsonRepresentation = new TreeMap<>();
     }
 
     public JSoundEventRegistryImpl(Map<String,JSoundEvent> jsonRepresentation) {
@@ -48,8 +50,6 @@ public class JSoundEventRegistryImpl implements JSoundEventRegistry {
 
     @Override
     public void writeToStream(OutputStream stream, Gson gson) throws IOException {
-        try (var writer = new OutputStreamWriter(stream, StandardCharsets.UTF_8)) {
-            gson.toJson(jsonRepresentation, writer);
-        }
+        Util.writeJsonToStream(stream, gson, jsonRepresentation);
     }
 }

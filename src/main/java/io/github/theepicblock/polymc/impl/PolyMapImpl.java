@@ -54,11 +54,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * This is the standard implementation of the PolyMap that PolyMc uses by default.
@@ -105,7 +105,7 @@ public class PolyMapImpl implements PolyMap {
         if (poly != null) ret = poly.getClientItem(serverItem, player, location);
 
         for (ItemTransformer globalPoly : globalItemPolys) {
-            ret = globalPoly.transform(ret, player, location);
+            ret = globalPoly.transform(serverItem, ret, player, location);
         }
 
         if ((player == null || player.isCreative()) && !ItemStack.canCombine(serverItem, ret) && !serverItem.isEmpty()) {
@@ -212,7 +212,7 @@ public class PolyMapImpl implements PolyMap {
         });
 
         // Import the language files for all mods
-        var languageKeys = new HashMap<String,HashMap<String, String>>(); // The first hashmap is per-language. Then it's translationkey->translation
+        var languageKeys = new TreeMap<String, Map<String, String>>(); // The first hashmap is per-language. Then it's translationkey->translation
         for (var lang : moddedResources.locateLanguageFiles()) {
             // Ignore fapi
             if (lang.getNamespace().equals("fabric")) continue;
@@ -220,7 +220,7 @@ public class PolyMapImpl implements PolyMap {
                 try (var streamReader = new InputStreamReader(stream, StandardCharsets.UTF_8)){
                     // Copy all of the language keys into the main map
                     var languageObject = pack.getGson().fromJson(streamReader, JsonObject.class);
-                    var mainLangMap = languageKeys.computeIfAbsent(lang.getPath(), (key) -> new HashMap<>());
+                    var mainLangMap = languageKeys.computeIfAbsent(lang.getPath(), (key) -> new TreeMap<>());
                     languageObject.entrySet().forEach(entry -> mainLangMap.put(entry.getKey(), JsonHelper.asString(entry.getValue(), entry.getKey())));
                 } catch (JsonParseException | IOException e) {
                     logger.error("Couldn't parse lang file "+lang);
@@ -231,9 +231,7 @@ public class PolyMapImpl implements PolyMap {
         // It doesn't actually matter which namespace the language files are under. We're just going to put them all under 'polymc-lang'
         languageKeys.forEach((path, translations) -> {
             pack.setAsset("polymc-lang", path, (stream, gson) -> {
-                try (var writer = new OutputStreamWriter(stream)) {
-                    gson.toJson(translations, writer);
-                }
+                Util.writeJsonToStream(stream, gson, translations);
             });
         });
 
